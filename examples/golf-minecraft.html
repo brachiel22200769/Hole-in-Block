@@ -1,25 +1,66 @@
 <!DOCTYPE html>
 <html lang="es">
-	<head>
-		<title>Hole in Block - three.js</title>
-		<meta charset=utf-8 />
-		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
-		<link type="text/css" rel="stylesheet" href="main.css">
-	</head>
-	<body>
-		<div id="modal-instrucciones" style="position:fixed;top:0;left:0;width:100%;height:100%;background:#000a;color:white;display:flex;justify-content:center;align-items:center;z-index:9999;">
-			<div style="background:#222;padding:30px;max-width:600px;border-radius:12px;text-align:center;box-shadow:0 0 20px #000;">
-			  <h2>Bienvenid@ a <span style="color:#f44;">Hole in Block</span></h2>
-			  <p>🎯 El objetivo es meter la pelota en el hoyo en un solo tiro.</p>
-			  <p>⛳ Son 19 hoyos, cada uno con su propio diseño y dificultad.</p>
-			  <p>🖱️ CLICK para lanzar la pelota.</p>
-			  <p>🎮 WASD para moverte, ESPACIO para saltar, MOUSE para mirar.</p>
-			  <button onclick="document.getElementById('modal-instrucciones').style.display='none';" style="margin-top:20px;padding:10px 30px;font-size:20px;background:red;color:white;border:none;border-radius:8px;cursor:pointer;">JUGAR</button>
-			</div>
-		  </div>		  
-		<div id="container"></div>
 
-		<script type="importmap">
+<head>
+	<title>Hole in Block - three.js</title>
+	<meta charset=utf-8 />
+	<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+	<link type="text/css" rel="stylesheet" href="main.css">
+	<style>
+		#crosshair {
+			position: fixed;
+			top: 50%;
+			left: 50%;
+			width: 12px;
+			height: 12px;
+			margin-left: -6px;
+			margin-top: -6px;
+			pointer-events: none;
+			z-index: 10000;
+		}
+
+		#crosshair::before,
+		#crosshair::after {
+			content: "";
+			position: absolute;
+			background: #fff;
+		}
+
+		#crosshair::before {
+			left: 5px;
+			top: 0;
+			width: 2px;
+			height: 12px;
+		}
+
+		#crosshair::after {
+			top: 5px;
+			left: 0;
+			width: 12px;
+			height: 2px;
+		}
+	</style>
+</head>
+
+<body>
+	<div id="crosshair"></div>
+	<div id="modal-instrucciones"
+		style="position:fixed;top:0;left:0;width:100%;height:100%;background:#000a;color:white;display:flex;justify-content:center;align-items:center;z-index:9999;">
+		<div
+			style="background:#222;padding:30px;max-width:600px;border-radius:12px;text-align:center;box-shadow:0 0 20px #000;">
+			<h2>Bienvenid@ a <span style="color:#f44;">Hole in Block</span></h2>
+			<p>🎯 El objetivo es meter la pelota en el hoyo en un solo tiro.</p>
+			<p>⛳ Son 19 hoyos, cada uno con su propio diseño y dificultad.</p>
+			<p>🖱️ CLICK IZQ para un tiro directo, CLICK DER para tiro bombeado.</p>
+			<p>🎮 WASD para moverte, ESPACIO para saltar, MOUSE para mirar.</p>
+			<button
+				onclick="document.getElementById('modal-instrucciones').style.display='none'; document.getElementById('crosshair').style.display='block';"
+				style="margin-top:20px;padding:10px 30px;font-size:20px;background:red;color:white;border:none;border-radius:8px;cursor:pointer;">JUGAR</button>
+		</div>
+	</div>
+	<div id="container"></div>
+
+	<script type="importmap">
 			{
 				"imports": {
 					"three": "../build/three.module.js",
@@ -28,388 +69,302 @@
 			}
 		</script>
 
-		<script type="module">
+	<script type="module">
 
-			import * as THREE from 'three';
+		import * as THREE from 'three';
 
-			import Stats from 'three/addons/libs/stats.module.js';
+		import Stats from 'three/addons/libs/stats.module.js';
 
-			import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+		import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-			import { Octree } from 'three/addons/math/Octree.js';
-			import { OctreeHelper } from 'three/addons/helpers/OctreeHelper.js';
+		import { Octree } from 'three/addons/math/Octree.js';
+		import { OctreeHelper } from 'three/addons/helpers/OctreeHelper.js';
 
-			import { Capsule } from 'three/addons/math/Capsule.js';
+		import { Capsule } from 'three/addons/math/Capsule.js';
 
-			import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+		import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 
-			const clock = new THREE.Clock();
+		const clock = new THREE.Clock();
 
-			const scene = new THREE.Scene();
-			scene.background = new THREE.Color( 0x88ccee );
-			scene.fog = new THREE.Fog( 0x88ccee, 0, 50 );
+		const scene = new THREE.Scene();
+		scene.background = new THREE.Color(0x88ccee);
+		scene.fog = new THREE.Fog(0x88ccee, 0, 50);
 
-			const camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 0.1, 1000 );
-			camera.rotation.order = 'YXZ';
+		const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
+		camera.rotation.order = 'YXZ';
 
-			const fillLight1 = new THREE.HemisphereLight( 0x8dc1de, 0x00668d, 1.5 );
-			fillLight1.position.set( 2, 1, 1 );
-			scene.add( fillLight1 );
+		const fillLight1 = new THREE.HemisphereLight(0x8dc1de, 0x00668d, 1.5);
+		fillLight1.position.set(2, 1, 1);
+		scene.add(fillLight1);
 
-			const directionalLight = new THREE.DirectionalLight( 0xffffff, 2.5 );
-			directionalLight.position.set( - 5, 25, - 1 );
-			directionalLight.castShadow = true;
-			directionalLight.shadow.camera.near = 0.01;
-			directionalLight.shadow.camera.far = 500;
-			directionalLight.shadow.camera.right = 30;
-			directionalLight.shadow.camera.left = - 30;
-			directionalLight.shadow.camera.top	= 30;
-			directionalLight.shadow.camera.bottom = - 30;
-			directionalLight.shadow.mapSize.width = 1024;
-			directionalLight.shadow.mapSize.height = 1024;
-			directionalLight.shadow.radius = 4;
-			directionalLight.shadow.bias = - 0.00006;
-			scene.add( directionalLight );
+		const directionalLight = new THREE.DirectionalLight(0xffffff, 2.5);
+		directionalLight.position.set(- 5, 25, - 1);
+		directionalLight.castShadow = true;
+		directionalLight.shadow.camera.near = 0.01;
+		directionalLight.shadow.camera.far = 500;
+		directionalLight.shadow.camera.right = 30;
+		directionalLight.shadow.camera.left = - 30;
+		directionalLight.shadow.camera.top = 30;
+		directionalLight.shadow.camera.bottom = - 30;
+		directionalLight.shadow.mapSize.width = 1024;
+		directionalLight.shadow.mapSize.height = 1024;
+		directionalLight.shadow.radius = 4;
+		directionalLight.shadow.bias = - 0.00006;
+		scene.add(directionalLight);
 
-			const container = document.getElementById( 'container' );
+		const container = document.getElementById('container');
 
-			const renderer = new THREE.WebGLRenderer( { antialias: true } );
-			renderer.setPixelRatio( window.devicePixelRatio );
-			renderer.setSize( window.innerWidth, window.innerHeight );
-			renderer.setAnimationLoop( animate );
-			renderer.shadowMap.enabled = true;
-			renderer.shadowMap.type = THREE.VSMShadowMap;
-			renderer.toneMapping = THREE.ACESFilmicToneMapping;
-			container.appendChild( renderer.domElement );
+		const renderer = new THREE.WebGLRenderer({ antialias: true });
+		renderer.setPixelRatio(window.devicePixelRatio);
+		renderer.setSize(window.innerWidth, window.innerHeight);
+		renderer.setAnimationLoop(animate);
+		renderer.shadowMap.enabled = true;
+		renderer.shadowMap.type = THREE.VSMShadowMap;
+		renderer.toneMapping = THREE.ACESFilmicToneMapping;
+		container.appendChild(renderer.domElement);
 
-			const stats = new Stats();
-			stats.domElement.style.position = 'absolute';
-			stats.domElement.style.top = '0px';
-			container.appendChild( stats.domElement );
+		const stats = new Stats();
+		stats.domElement.style.position = 'absolute';
+		stats.domElement.style.top = '0px';
+		container.appendChild(stats.domElement);
 
-			const GRAVITY = 30;
+		const GRAVITY = 30;
 
-			const NUM_SPHERES = 100;
-			const SPHERE_RADIUS = 0.02;
+		const NUM_SPHERES = 100;
+		const SPHERE_RADIUS = 0.02;
 
-			const STEPS_PER_FRAME = 5;
+		const STEPS_PER_FRAME = 5;
 
-			const sphereGeometry = new THREE.IcosahedronGeometry( SPHERE_RADIUS, 5 );
-			const sphereMaterial = new THREE.MeshLambertMaterial( { color: 0xdede8d } );
+		const sphereGeometry = new THREE.IcosahedronGeometry(SPHERE_RADIUS, 5);
+		const sphereMaterial = new THREE.MeshLambertMaterial({ color: 0xdede8d });
 
-			const spheres = [];
-			let sphereIdx = 0;
+		const spheres = [];
+		let sphereIdx = 0;
 
-			for ( let i = 0; i < NUM_SPHERES; i ++ ) {
+		for (let i = 0; i < NUM_SPHERES; i++) {
 
-				const sphere = new THREE.Mesh( sphereGeometry, sphereMaterial );
-				sphere.castShadow = true;
-				sphere.receiveShadow = true;
+			const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+			sphere.castShadow = true;
+			sphere.receiveShadow = true;
 
-				scene.add( sphere );
+			scene.add(sphere);
 
-				spheres.push( {
-					mesh: sphere,
-					collider: new THREE.Sphere( new THREE.Vector3( 0, - 100, 0 ), SPHERE_RADIUS ),
-					velocity: new THREE.Vector3()
-				} );
+			spheres.push({
+				mesh: sphere,
+				collider: new THREE.Sphere(new THREE.Vector3(0, - 100, 0), SPHERE_RADIUS),
+				velocity: new THREE.Vector3()
+			});
 
-			}
+		}
 
-			const worldOctree = new Octree();
+		const worldOctree = new Octree();
 
-			const playerCollider = new Capsule( 
-				new THREE.Vector3( 0, 0.025, 0 ), 
-				new THREE.Vector3( 0, 0.075, 0 ), 
-				0.02 );
+		const playerCollider = new Capsule(
+			new THREE.Vector3(0, 0.025, 0),
+			new THREE.Vector3(0, 0.075, 0),
+			0.02);
 
-			const playerVelocity = new THREE.Vector3();
-			const playerDirection = new THREE.Vector3();
+		const playerVelocity = new THREE.Vector3();
+		const playerDirection = new THREE.Vector3();
 
-			let playerOnFloor = false;
-			let mouseTime = 0;
+		let playerOnFloor = false;
+		let mouseTime = 0;
 
-			const keyStates = {};
+		const keyStates = {};
 
-			const vector1 = new THREE.Vector3();
-			const vector2 = new THREE.Vector3();
-			const vector3 = new THREE.Vector3();
+		const vector1 = new THREE.Vector3();
+		const vector2 = new THREE.Vector3();
+		const vector3 = new THREE.Vector3();
 
-			document.addEventListener( 'keydown', ( event ) => {
+		document.addEventListener('keydown', (event) => {
 
-				keyStates[ event.code ] = true;
+			keyStates[event.code] = true;
 
-			} );
+		});
 
-			document.addEventListener( 'keyup', ( event ) => {
+		document.addEventListener('keyup', (event) => {
 
-				keyStates[ event.code ] = false;
+			keyStates[event.code] = false;
 
-			} );
+		});
 
-			container.addEventListener( 'mousedown', () => {
+		let mouseButton = null;
+		let mouseDownTime = 0;
 
-				document.body.requestPointerLock();
+		container.addEventListener('mousedown', (event) => {
+			document.body.requestPointerLock();
+			mouseButton = event.button;
+			mouseDownTime = performance.now(); // 0 = izquierdo, 2 = derecho
+		});
 
-				mouseTime = performance.now();
-
-			} );
-
-			document.addEventListener( 'mouseup', () => {
-
-				if ( document.pointerLockElement !== null ) throwBall();
-
-			} );
-
-			document.body.addEventListener( 'mousemove', ( event ) => {
-
-				if ( document.pointerLockElement === document.body ) {
-
-					camera.rotation.y -= event.movementX / 500;
-					camera.rotation.x -= event.movementY / 500;
-
+		document.addEventListener('mouseup', (event) => {
+			if (document.pointerLockElement !== null) {
+				const chargeTime = (performance.now() - mouseDownTime) * 0.001; // Tiempo de carga en segundos
+				if (event.button === 0) {
+					throwBall('direct');
+				} else if (event.button === 2) {
+					throwBall('lob');
 				}
+			}
+			mouseButton = null;
+		});
 
-			} );
 
-			window.addEventListener( 'resize', onWindowResize );
+		document.body.addEventListener('mousemove', (event) => {
 
-			function onWindowResize() {
+			if (document.pointerLockElement === document.body) {
 
-				camera.aspect = window.innerWidth / window.innerHeight;
-				camera.updateProjectionMatrix();
-
-				renderer.setSize( window.innerWidth, window.innerHeight );
+				camera.rotation.y -= event.movementX / 500;
+				camera.rotation.x -= event.movementY / 500;
 
 			}
 
-			function throwBall() {
+		});
 
-				const sphere = spheres[ sphereIdx ];
+		window.addEventListener('resize', onWindowResize);
 
-				camera.getWorldDirection( playerDirection );
+		function onWindowResize() {
 
-				sphere.collider.center.copy( playerCollider.end ).addScaledVector( playerDirection, playerCollider.radius * 1.5 );
+			camera.aspect = window.innerWidth / window.innerHeight;
+			camera.updateProjectionMatrix();
 
-				const impulse = 0.8 + 3 * ( 1 - Math.exp( ( mouseTime - performance.now() ) * 0.001 ) );
+			renderer.setSize(window.innerWidth, window.innerHeight);
 
-				sphere.velocity.copy( playerDirection ).multiplyScalar( impulse );
-				sphere.velocity.addScaledVector( playerVelocity, 0.2 );
+		}
 
-				sphereIdx = ( sphereIdx + 1 ) % spheres.length;
+		function throwBall(type = 'direct', chargeTime = 0.4) {
+			const sphere = spheres[sphereIdx];
+			camera.getWorldDirection(playerDirection);
 
-			}
+			sphere.collider.center.copy(playerCollider.end).addScaledVector(playerDirection, playerCollider.radius * 1.5);
 
-			function playerCollisions() {
+			// Limitar carga a máximo 1.5 segundos
+			const clampedCharge = Math.min(chargeTime, 1.5);
+			let impulse;
 
-				const result = worldOctree.capsuleIntersect( playerCollider );
-
-				playerOnFloor = false;
-
-				if ( result ) {
-
-					playerOnFloor = result.normal.y > 0;
-
-					if ( ! playerOnFloor ) {
-
-						playerVelocity.addScaledVector( result.normal, - result.normal.dot( playerVelocity ) );
-
-					}
-
-					if ( result.depth >= 1e-10 ) {
-
-						playerCollider.translate( result.normal.multiplyScalar( result.depth ) );
-
-					}
-
-				}
-
-			}
-
-			function updatePlayer( deltaTime ) {
-
-				let damping = Math.exp( - 4 * deltaTime ) - 1;
-
-				if ( ! playerOnFloor ) {
-
-					playerVelocity.y -= GRAVITY * deltaTime;
-
-					// small air resistance
-					damping *= 0.1;
-
-				}
-
-				playerVelocity.addScaledVector( playerVelocity, damping );
-
-				const deltaPosition = playerVelocity.clone().multiplyScalar( deltaTime );
-				playerCollider.translate( deltaPosition );
-
-				playerCollisions();
-
-				camera.position.copy( playerCollider.end );
-
-			}
-
-			function playerSphereCollision( sphere ) {
-
-				const center = vector1.addVectors( playerCollider.start, playerCollider.end ).multiplyScalar( 0.5 );
-
-				const sphere_center = sphere.collider.center;
-
-				const r = playerCollider.radius + sphere.collider.radius;
-				const r2 = r * r;
-
-				// approximation: player = 3 spheres
-
-				for ( const point of [ playerCollider.start, playerCollider.end, center ] ) {
-
-					const d2 = point.distanceToSquared( sphere_center );
-
-					if ( d2 < r2 ) {
-
-						const normal = vector1.subVectors( point, sphere_center ).normalize();
-						const v1 = vector2.copy( normal ).multiplyScalar( normal.dot( playerVelocity ) );
-						const v2 = vector3.copy( normal ).multiplyScalar( normal.dot( sphere.velocity ) );
-
-						playerVelocity.add( v2 ).sub( v1 );
-						sphere.velocity.add( v1 ).sub( v2 );
-
-						const d = ( r - Math.sqrt( d2 ) ) / 2;
-						sphere_center.addScaledVector( normal, - d );
-
-					}
-
-				}
-
-			}
-
-			function spheresCollisions() {
-
-				for ( let i = 0, length = spheres.length; i < length; i ++ ) {
-
-					const s1 = spheres[ i ];
-
-					for ( let j = i + 1; j < length; j ++ ) {
-
-						const s2 = spheres[ j ];
-
-						const d2 = s1.collider.center.distanceToSquared( s2.collider.center );
-						const r = s1.collider.radius + s2.collider.radius;
-						const r2 = r * r;
-
-						if ( d2 < r2 ) {
-
-							const normal = vector1.subVectors( s1.collider.center, s2.collider.center ).normalize();
-							const v1 = vector2.copy( normal ).multiplyScalar( normal.dot( s1.velocity ) );
-							const v2 = vector3.copy( normal ).multiplyScalar( normal.dot( s2.velocity ) );
-
-							s1.velocity.add( v2 ).sub( v1 );
-							s2.velocity.add( v1 ).sub( v2 );
-
-							const d = ( r - Math.sqrt( d2 ) ) / 2;
-
-							s1.collider.center.addScaledVector( normal, d );
-							s2.collider.center.addScaledVector( normal, - d );
-
-						}
-
-					}
-
-				}
-
-			}
-
-			function updateSpheres( deltaTime ) {
-
-				spheres.forEach( sphere => {
-
-					sphere.collider.center.addScaledVector( sphere.velocity, deltaTime );
-
-					const result = worldOctree.sphereIntersect( sphere.collider );
-
-					if ( result ) {
-
-						sphere.velocity.addScaledVector( result.normal, - result.normal.dot( sphere.velocity ) * 1.5 );
-						sphere.collider.center.add( result.normal.multiplyScalar( result.depth ) );
-
-					} else {
-
-						sphere.velocity.y -= GRAVITY * deltaTime;
-
-					}
-
-					const damping = Math.exp( - 1.5 * deltaTime ) - 1;
-					sphere.velocity.addScaledVector( sphere.velocity, damping );
-
-					playerSphereCollision( sphere );
-
-				} );
-
-				spheresCollisions();
-
-				for ( const sphere of spheres ) {
-
-					sphere.mesh.position.copy( sphere.collider.center );
-
-				}
-
-			}
-
-			function getForwardVector() {
-
-				camera.getWorldDirection( playerDirection );
-				playerDirection.y = 0;
+			if (type === 'lob') {
+				impulse = 3 + clampedCharge * 4;
+				playerDirection.y=2.5;
 				playerDirection.normalize();
+			} else {
+				impulse = 2 + clampedCharge * 6;
+			}
 
-				return playerDirection;
+			sphere.velocity.copy(playerDirection).multiplyScalar(impulse);
+
+			sphereIdx = (sphereIdx + 1) % spheres.length;
+		}
+
+		function playerCollisions() {
+
+			const result = worldOctree.capsuleIntersect(playerCollider);
+
+			playerOnFloor = false;
+
+			if (result) {
+
+				playerOnFloor = result.normal.y > 0;
+
+				if (!playerOnFloor) {
+
+					playerVelocity.addScaledVector(result.normal, - result.normal.dot(playerVelocity));
+
+				}
+
+				if (result.depth >= 1e-10) {
+
+					playerCollider.translate(result.normal.multiplyScalar(result.depth));
+
+				}
 
 			}
 
-			function getSideVector() {
+		}
 
-				camera.getWorldDirection( playerDirection );
-				playerDirection.y = 0;
-				playerDirection.normalize();
-				playerDirection.cross( camera.up );
+		function updatePlayer(deltaTime) {
 
-				return playerDirection;
+			let damping = Math.exp(- 4 * deltaTime) - 1;
+
+			if (!playerOnFloor) {
+
+				playerVelocity.y -= GRAVITY * deltaTime;
+
+				// small air resistance
+				damping *= 0.1;
 
 			}
 
-			function controls( deltaTime ) {
+			playerVelocity.addScaledVector(playerVelocity, damping);
 
-				// gives a bit of air control
-				const speedDelta = deltaTime * ( playerOnFloor ? 4 : 1.5 );
+			const deltaPosition = playerVelocity.clone().multiplyScalar(deltaTime);
+			playerCollider.translate(deltaPosition);
 
-				if ( keyStates[ 'KeyW' ] ) {
+			playerCollisions();
 
-					playerVelocity.add( getForwardVector().multiplyScalar( speedDelta ) );
+			camera.position.copy(playerCollider.end);
+
+		}
+
+		function playerSphereCollision(sphere) {
+
+			const center = vector1.addVectors(playerCollider.start, playerCollider.end).multiplyScalar(0.5);
+
+			const sphere_center = sphere.collider.center;
+
+			const r = playerCollider.radius + sphere.collider.radius;
+			const r2 = r * r;
+
+			// approximation: player = 3 spheres
+
+			for (const point of [playerCollider.start, playerCollider.end, center]) {
+
+				const d2 = point.distanceToSquared(sphere_center);
+
+				if (d2 < r2) {
+
+					const normal = vector1.subVectors(point, sphere_center).normalize();
+					const v1 = vector2.copy(normal).multiplyScalar(normal.dot(playerVelocity));
+					const v2 = vector3.copy(normal).multiplyScalar(normal.dot(sphere.velocity));
+
+					playerVelocity.add(v2).sub(v1);
+					sphere.velocity.add(v1).sub(v2);
+
+					const d = (r - Math.sqrt(d2)) / 2;
+					sphere_center.addScaledVector(normal, - d);
 
 				}
 
-				if ( keyStates[ 'KeyS' ] ) {
+			}
 
-					playerVelocity.add( getForwardVector().multiplyScalar( - speedDelta ) );
+		}
 
-				}
+		function spheresCollisions() {
 
-				if ( keyStates[ 'KeyA' ] ) {
+			for (let i = 0, length = spheres.length; i < length; i++) {
 
-					playerVelocity.add( getSideVector().multiplyScalar( - speedDelta ) );
+				const s1 = spheres[i];
 
-				}
+				for (let j = i + 1; j < length; j++) {
 
-				if ( keyStates[ 'KeyD' ] ) {
+					const s2 = spheres[j];
 
-					playerVelocity.add( getSideVector().multiplyScalar( speedDelta ) );
+					const d2 = s1.collider.center.distanceToSquared(s2.collider.center);
+					const r = s1.collider.radius + s2.collider.radius;
+					const r2 = r * r;
 
-				}
+					if (d2 < r2) {
 
-				if ( playerOnFloor ) {
+						const normal = vector1.subVectors(s1.collider.center, s2.collider.center).normalize();
+						const v1 = vector2.copy(normal).multiplyScalar(normal.dot(s1.velocity));
+						const v2 = vector3.copy(normal).multiplyScalar(normal.dot(s2.velocity));
 
-					if ( keyStates[ 'Space' ] ) {
+						s1.velocity.add(v2).sub(v1);
+						s2.velocity.add(v1).sub(v2);
 
-						playerVelocity.y = 1.5;
+						const d = (r - Math.sqrt(d2)) / 2;
+
+						s1.collider.center.addScaledVector(normal, d);
+						s2.collider.center.addScaledVector(normal, - d);
 
 					}
 
@@ -417,82 +372,183 @@
 
 			}
 
-			const loader = new GLTFLoader().setPath( './models/gltf/' );
+		}
 
-			loader.load( 'golf-escenario.glb', ( gltf ) => {
+		function updateSpheres(deltaTime) {
 
-				scene.add( gltf.scene );
+			spheres.forEach(sphere => {
 
-				worldOctree.fromGraphNode( gltf.scene );
+				sphere.collider.center.addScaledVector(sphere.velocity, deltaTime);
 
-				gltf.scene.traverse( child => {
+				const result = worldOctree.sphereIntersect(sphere.collider);
 
-					if ( child.isMesh ) {
+				if (result) {
 
-						child.castShadow = true;
-						child.receiveShadow = true;
+					sphere.velocity.addScaledVector(result.normal, - result.normal.dot(sphere.velocity) * 1.5);
+					sphere.collider.center.add(result.normal.multiplyScalar(result.depth));
 
-						if ( child.material.map ) {
+				} else {
 
-							child.material.map.anisotropy = 4;
+					sphere.velocity.y -= GRAVITY * deltaTime;
 
-						}
+				}
+
+				const damping = Math.exp(- 1.5 * deltaTime) - 1;
+				sphere.velocity.addScaledVector(sphere.velocity, damping);
+
+				playerSphereCollision(sphere);
+
+			});
+
+			spheresCollisions();
+
+			for (const sphere of spheres) {
+
+				sphere.mesh.position.copy(sphere.collider.center);
+
+			}
+
+		}
+
+		function getForwardVector() {
+
+			camera.getWorldDirection(playerDirection);
+			playerDirection.y = 0;
+			playerDirection.normalize();
+
+			return playerDirection;
+
+		}
+
+		function getSideVector() {
+
+			camera.getWorldDirection(playerDirection);
+			playerDirection.y = 0;
+			playerDirection.normalize();
+			playerDirection.cross(camera.up);
+
+			return playerDirection;
+
+		}
+
+		function controls(deltaTime) {
+
+			// gives a bit of air control
+			const speedDelta = deltaTime * (playerOnFloor ? 4 : 1.5);
+
+			if (keyStates['KeyW']) {
+
+				playerVelocity.add(getForwardVector().multiplyScalar(speedDelta));
+
+			}
+
+			if (keyStates['KeyS']) {
+
+				playerVelocity.add(getForwardVector().multiplyScalar(- speedDelta));
+
+			}
+
+			if (keyStates['KeyA']) {
+
+				playerVelocity.add(getSideVector().multiplyScalar(- speedDelta));
+
+			}
+
+			if (keyStates['KeyD']) {
+
+				playerVelocity.add(getSideVector().multiplyScalar(speedDelta));
+
+			}
+
+			if (playerOnFloor) {
+
+				if (keyStates['Space']) {
+
+					playerVelocity.y = 1.5;
+
+				}
+
+			}
+
+		}
+
+		const loader = new GLTFLoader().setPath('./models/gltf/');
+
+		loader.load('golf-escenario.glb', (gltf) => {
+
+			scene.add(gltf.scene);
+
+			worldOctree.fromGraphNode(gltf.scene);
+
+			gltf.scene.traverse(child => {
+
+				if (child.isMesh) {
+
+					child.castShadow = true;
+					child.receiveShadow = true;
+
+					if (child.material.map) {
+
+						child.material.map.anisotropy = 4;
 
 					}
 
-				} );
-
-				const helper = new OctreeHelper( worldOctree );
-				helper.visible = false;
-				scene.add( helper );
-
-				const gui = new GUI( { width: 200 } );
-				gui.add( { debug: false }, 'debug' )
-					.onChange( function ( value ) {
-
-						helper.visible = value;
-
-					} );
-			
-			} );
-
-			function teleportPlayerIfOob() {
-
-				if ( camera.position.y <= - 25 ) {
-
-					playerCollider.start.set( 0, 2.06, 0 );
-					playerCollider.end.set( 0, 2.18, 0 );
-					playerCollider.radius = 0.025;
-					camera.position.copy( playerCollider.end );
-					camera.rotation.set( 0, 0, 0 );
-
 				}
+
+			});
+
+			const helper = new OctreeHelper(worldOctree);
+			helper.visible = false;
+			scene.add(helper);
+
+			const gui = new GUI({ width: 200 });
+			gui.add({ debug: false }, 'debug')
+				.onChange(function (value) {
+
+					helper.visible = value;
+
+				});
+
+		});
+
+		function teleportPlayerIfOob() {
+
+			if (camera.position.y <= - 25) {
+
+				playerCollider.start.set(0, 2.06, 0);
+				playerCollider.end.set(0, 2.18, 0);
+				playerCollider.radius = 0.025;
+				camera.position.copy(playerCollider.end);
+				camera.rotation.set(0, 0, 0);
 
 			}
 
+		}
 
-			function animate() {
 
-				const deltaTime = Math.min( 0.05, clock.getDelta() ) / STEPS_PER_FRAME;
+		function animate() {
 
-				for ( let i = 0; i < STEPS_PER_FRAME; i ++ ) {
+			const deltaTime = Math.min(0.05, clock.getDelta()) / STEPS_PER_FRAME;
 
-					controls( deltaTime );
+			for (let i = 0; i < STEPS_PER_FRAME; i++) {
 
-					updatePlayer( deltaTime );
+				controls(deltaTime);
 
-					updateSpheres( deltaTime );
+				updatePlayer(deltaTime);
 
-					teleportPlayerIfOob();
+				updateSpheres(deltaTime);
 
-				}
-
-				renderer.render( scene, camera );
-
-				stats.update();
+				teleportPlayerIfOob();
 
 			}
 
-		</script>
-	</body>
+			renderer.render(scene, camera);
+
+			stats.update();
+
+		}
+
+	</script>
+</body>
+
 </html>
