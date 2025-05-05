@@ -232,9 +232,11 @@
 
 		}
 
-		function throwBall(type = 'direct', chargeTime = 0.4) {
+		function throwBall(type = 'direct', chargeTime = 0.2) {
 			const sphere = spheres[sphereIdx];
 			camera.getWorldDirection(playerDirection);
+
+			playerVelocity.set(0, playerVelocity.y, 0);
 
 			sphere.collider.center.copy(playerCollider.end).addScaledVector(playerDirection, playerCollider.radius * 1.5);
 
@@ -243,8 +245,8 @@
 			let impulse;
 
 			if (type === 'lob') {
-				impulse = 3 + clampedCharge * 4;
-				playerDirection.y=2.5;
+				impulse = 4 + clampedCharge * 5;
+				playerDirection.y=1.0;
 				playerDirection.normalize();
 			} else {
 				impulse = 2 + clampedCharge * 6;
@@ -252,7 +254,7 @@
 
 			sphere.velocity.copy(playerDirection).multiplyScalar(impulse);
 
-			sphereIdx = (sphereIdx + 1) % spheres.length;
+			sphereIdx = (sphereIdx + 0) % spheres.length;
 		}
 
 		function playerCollisions() {
