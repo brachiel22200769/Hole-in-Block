@@ -75,6 +75,10 @@
 
 <body>
 	<div id="crosshair"></div>
+	<div id="puntaje-hud"
+		style="position: fixed; bottom: 10px; right: 20px; background: rgba(0, 0, 0, 0.6); color: white; padding: 6px 12px; border-radius: 6px; font-size: 18px; z-index: 10001; font-family: sans-serif;">
+		Puntaje: <span id="puntaje-valor">0</span>
+	</div>
 	<div id="fuerza-hud">
 		Fuerza: <span id="fuerza-valor">1</span>
 		<div id="fuerza-barra-container">
@@ -129,7 +133,10 @@
 		scene.fog = new THREE.Fog(0x88ccee, 0, 50);
 
 		const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
+		window.camera = camera;
 		camera.rotation.order = 'YXZ';
+
+
 
 		const fillLight1 = new THREE.HemisphereLight(0x8dc1de, 0x00668d, 1.5);
 		fillLight1.position.set(2, 1, 1);
@@ -180,6 +187,7 @@
 		let sphereIdx = 0;
 		//AQUI
 		let forceLevel = 1;
+		let puntaje = 0;
 		let chargeMultiplier = 1;
 
 		for (let i = 0; i < NUM_SPHERES; i++) {
@@ -192,7 +200,7 @@
 
 			spheres.push({
 				mesh: sphere,
-				collider: new THREE.Sphere(new THREE.Vector3(0, - 100, 0), SPHERE_RADIUS),
+				collider: new THREE.Sphere(new THREE.Vector3(0, 9999, 0), SPHERE_RADIUS),
 				velocity: new THREE.Vector3()
 			});
 
@@ -310,7 +318,7 @@
 
 			sphere.velocity.copy(playerDirection).multiplyScalar(impulse);
 
-			sphereIdx = (sphereIdx + 0) % spheres.length;
+			sphereIdx = (sphereIdx + 1) % spheres.length;
 		}
 
 		function playerCollisions() {
@@ -453,6 +461,12 @@
 
 				const damping = Math.exp(- 1.5 * deltaTime) - 1;
 				sphere.velocity.addScaledVector(sphere.velocity, damping);
+				// Detectar si la pelota está en la altura del hoyo (Y ≈ 0.20)
+				if (sphere.collider.center.y <= 0.12 && sphere.velocity.length() > 0.1 && !sphere.counted) {
+					sphere.counted = true;
+					puntaje += 10;
+					document.getElementById('puntaje-valor').textContent = puntaje;
+				}
 
 				playerSphereCollision(sphere);
 
@@ -555,19 +569,64 @@
 
 			});
 
+			// Obtener límites y crear muros invisibles
+			const boundingBox = new THREE.Box3().setFromObject(gltf.scene);
+			const size = new THREE.Vector3();
+			boundingBox.getSize(size);
+			const center = new THREE.Vector3();
+			boundingBox.getCenter(center);
+
+			const materialInvisible = new THREE.MeshBasicMaterial({ visible: false });
+			const thickness = 1;
+			const paredes = [];
+
+			// Frente
+			paredes.push(new THREE.Mesh(new THREE.BoxGeometry(size.x, size.y, thickness), materialInvisible));
+			paredes[0].position.set(center.x, center.y, boundingBox.max.z + thickness / 2);
+
+			// Atrás
+			paredes.push(new THREE.Mesh(new THREE.BoxGeometry(size.x, size.y, thickness), materialInvisible));
+			paredes[1].position.set(center.x, center.y, boundingBox.min.z - thickness / 2);
+
+			// Izquierda
+			paredes.push(new THREE.Mesh(new THREE.BoxGeometry(thickness, size.y, size.z), materialInvisible));
+			paredes[2].position.set(boundingBox.min.x - thickness / 2, center.y, center.z);
+
+			// Derecha
+			paredes.push(new THREE.Mesh(new THREE.BoxGeometry(thickness, size.y, size.z), materialInvisible));
+			paredes[3].position.set(boundingBox.max.x + thickness / 2, center.y, center.z);
+
+			// Fondo
+			paredes.push(new THREE.Mesh(new THREE.BoxGeometry(size.x, thickness, size.z), materialInvisible));
+			paredes[4].position.set(center.x, boundingBox.min.y - thickness / 2, center.z);
+
+			paredes.forEach(pared => {
+				scene.add(pared);
+				worldOctree.fromGraphNode(pared); // importante para colisiones
+			});
+
 			const helper = new OctreeHelper(worldOctree);
 			helper.visible = false;
 			scene.add(helper);
 
 			const gui = new GUI({ width: 200 });
-			gui.add({ debug: false }, 'debug')
-				.onChange(function (value) {
-
-					helper.visible = value;
-
-				});
+			gui.add({ debug: false }, 'debug').onChange(function (value) {
+				helper.visible = value;
+			});
 
 		});
+
+		const helper = new OctreeHelper(worldOctree);
+		helper.visible = false;
+		scene.add(helper);
+
+		const gui = new GUI({ width: 200 });
+		gui.add({ debug: false }, 'debug')
+			.onChange(function (value) {
+
+				helper.visible = value;
+
+			});
 
 		function teleportPlayerIfOob() {
 
