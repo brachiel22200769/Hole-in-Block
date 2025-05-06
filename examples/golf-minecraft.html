@@ -95,9 +95,7 @@
 			<p>🖱️ CLICK IZQ para un tiro directo, CLICK DER para tiro bombeado.</p>
 			<p>🔢 Usa las teclas 1–4 para cambiar la fuerza del disparo (4 = máxima).</p>
 			<p>🎮 WASD para moverte, ESPACIO para saltar, MOUSE para mirar.</p>
-			<button
-				onclick="document.getElementById('modal-instrucciones').style.display='none'; document.getElementById('crosshair').style.display='block';"
-				style="margin-top:20px;padding:10px 30px;font-size:20px;background:red;color:white;border:none;border-radius:8px;cursor:pointer;">JUGAR</button>
+			<button id="btn-jugar" style="margin-top:20px;padding:10px 30px;font-size:20px;background:red;color:white;border:none;border-radius:8px;cursor:pointer;">JUGAR</button>
 		</div>
 	</div>
 	<div id="container"></div>
@@ -317,6 +315,10 @@
 			}
 
 			sphere.velocity.copy(playerDirection).multiplyScalar(impulse);
+
+			if (sonidoSwing.isPlaying) sonidoSwing.stop();
+			sonidoSwing.play();
+
 
 			sphereIdx = (sphereIdx + 1) % spheres.length;
 		}
@@ -664,6 +666,50 @@
 			stats.update();
 
 		}
+
+		function reproducirMusica() {
+			if (!musicaFondo.isPlaying) {
+				musicaFondo.play().catch((e) => {
+					console.warn("No se pudo reproducir la música:", e);
+				});
+			}
+		}
+		// 🎧 Configurar sonidos
+		const listener = new THREE.AudioListener();
+		camera.add(listener);
+
+		const audioLoader = new THREE.AudioLoader();
+
+		let musicaCargada = false;
+
+		// Música de fondo
+		const musicaFondo = new THREE.Audio(listener);
+		audioLoader.load('musica-fondo.mp3', function (buffer) {
+			musicaFondo.setBuffer(buffer);
+			musicaFondo.setLoop(true);
+			musicaFondo.setVolume(0.8);
+			musicaCargada = true;
+		});
+document.getElementById('btn-jugar').addEventListener('click', () => {
+	document.getElementById('modal-instrucciones').style.display = 'none';
+	document.getElementById('crosshair').style.display = 'block';
+
+	if (!musicaFondo.isPlaying) {
+		musicaFondo.play().catch((e) => {
+			console.warn("No se pudo reproducir la música:", e);
+		});
+	}
+});
+
+
+		// Sonido al lanzar pelota
+		const sonidoSwing = new THREE.Audio(listener);
+		audioLoader.load('golf-swing.mp3', function (buffer) {
+			sonidoSwing.setBuffer(buffer);
+			sonidoSwing.setVolume(1);
+		});
+
+
 
 	</script>
 </body>
