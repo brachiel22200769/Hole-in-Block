@@ -116,6 +116,8 @@
 
 	<script type="module">
 
+		import { VRButton } from 'three/addons/webxr/VRButton.js';
+
 		import * as THREE from 'three';
 
 		import Stats from 'three/addons/libs/stats.module.js';
@@ -165,11 +167,41 @@
 		const renderer = new THREE.WebGLRenderer({ antialias: true });
 		renderer.setPixelRatio(window.devicePixelRatio);
 		renderer.setSize(window.innerWidth, window.innerHeight);
-		renderer.setAnimationLoop(animate);
+		renderer.setAnimationLoop(function () {
+			const deltaTime = Math.min(0.05, clock.getDelta()) / STEPS_PER_FRAME;
+
+			for (let i = 0; i < STEPS_PER_FRAME; i++) {
+				controls(deltaTime);
+				updatePlayer(deltaTime);
+				updateSpheres(deltaTime);
+				teleportPlayerIfOob();
+			}
+
+			renderer.render(scene, camera);
+			stats.update();
+		});
+
 		renderer.shadowMap.enabled = true;
 		renderer.shadowMap.type = THREE.VSMShadowMap;
 		renderer.toneMapping = THREE.ACESFilmicToneMapping;
 		container.appendChild(renderer.domElement);
+
+		renderer.xr.enabled = true;
+		document.body.appendChild(VRButton.createButton(renderer));
+
+		renderer.xr.addEventListener('sessionstart', () => {
+			document.getElementById('crosshair').style.display = 'none';
+			document.getElementById('fuerza-hud').style.display = 'none';
+			document.getElementById('puntaje-hud').style.display = 'none';
+		});
+
+		renderer.xr.addEventListener('sessionend', () => {
+			document.getElementById('crosshair').style.display = 'block';
+			document.getElementById('fuerza-hud').style.display = 'block';
+			document.getElementById('puntaje-hud').style.display = 'block';
+		});
+
+
 
 		const stats = new Stats();
 		stats.domElement.style.position = 'absolute';
@@ -184,7 +216,7 @@
 		const STEPS_PER_FRAME = 5;
 
 		const sphereGeometry = new THREE.IcosahedronGeometry(SPHERE_RADIUS, 5);
-		const sphereMaterial = new THREE.MeshLambertMaterial({ color: 0xdede8d });
+		const sphereMaterial = new THREE.MeshLambertMaterial({ color: FFFFFF });
 
 		const spheres = [];
 		let sphereIdx = 0;
